@@ -15,18 +15,23 @@ const (
 	gocInvoiceNumRegexStr                        = `Numer faktury korygującej:\s+([A-Z]+-\d{2}-\d{4}-\d{7})`
 	gocInvoiceDateRegexStr                       = `\d{2} [a-z]{3} \d{4}`
 	gocInvoiceNetRegexStr                        = `Wartość całkowita netto\s+(\d+\,\d+)\s+zł`
+	gocInvoiceGrossRegexStr                      = `Wartość całkowita brutto\s+(\d+\,\d+)\s+zł`
+	gocInvoiceNipRegexStr                        = `NIP:\s(\d{10})\sFaktura wystawiona przez`
 )
 
 type invoice struct {
-	no             string
-	formatted_date string
-	net            float32
-	gross          float32
+	no            string
+	nip           string
+	formattedDate string
+	net           float64
+	gross         float64
 }
 
-var gocInvoiceNumRegex = regexp.MustCompile(gocInvoiceNumRegexStr)
+var gocInvoiceNoRegex = regexp.MustCompile(gocInvoiceNumRegexStr)
+var gocInvoiceNipRegex = regexp.MustCompile(gocInvoiceNipRegexStr)
 var gocInvoiceDateRegex = regexp.MustCompile(gocInvoiceDateRegexStr)
 var gocInvoiceNetRegex = regexp.MustCompile(gocInvoiceNetRegexStr)
+var gocInvoiceGrossRegex = regexp.MustCompile(gocInvoiceGrossRegexStr)
 
 func getFirstPageContent(pdfPath string) (string, error) {
 	f, r, err := pdf.Open(pdfPath)
@@ -52,6 +57,26 @@ func getFirstSubgroupMatch(text string, re *regexp.Regexp) (string, error) {
 	}
 }
 
+func extractNumber(text string, re *regexp.Regexp) (float64, error) {
+	valStr, err := getFirstSubgroupMatch(text, re)
+	if err != nil {
+		return 0, err
+	}
+	val, err := strconv.ParseFloat(strings.Replace(valStr, ",", ".", 1), 32)
+	if err != nil {
+		return 0, err
+	}
+	return val, nil
+}
+
+func extractNip(text string) (string, error) {
+	if strings.Count(text, "NIP") >= 2 {
+		return getFirstSubgroupMatch(text, gocInvoiceNipRegex)
+	} else {
+		return "", nil
+	}
+}
+
 func extractInvoiceData(content string) (invoice, error) {
 	if !strings.Contains(content, grossObligatoryCorrectionInvoiceTypeEvidence) {
 		return invoice{}, fmt.Errorf("unsupported invoice type for extraction")
@@ -59,9 +84,14 @@ func extractInvoiceData(content string) (invoice, error) {
 
 	fmt.Println(content)
 
-	no, err := getFirstSubgroupMatch(content, gocInvoiceNumRegex)
+	no, err := getFirstSubgroupMatch(content, gocInvoiceNoRegex)
 	if err != nil {
 		return invoice{}, fmt.Errorf("can't extract no: %v", err)
+	}
+
+	nip, err := extractNip(content)
+	if err != nil {
+		return invoice{}, fmt.Errorf("can't extract nip: %v", err)
 	}
 
 	date := gocInvoiceDateRegex.FindString(content)
@@ -69,21 +99,17 @@ func extractInvoiceData(content string) (invoice, error) {
 		return invoice{}, fmt.Errorf("can't extract date")
 	}
 
-	netStr, err := getFirstSubgroupMatch(content, gocInvoiceNetRegex)
+	net, err := extractNumber(content, gocInvoiceNetRegex)
 	if err != nil {
 		return invoice{}, fmt.Errorf("can't extract net: %v", err)
 	}
-	net64, err := strconv.ParseFloat(netStr, 32)
-	if err != nil {
-		return invoice{}, fmt.Errorf("can't parse net value: %v", err)
-	}
-	net := float32(net64)
 
-	invoiceData := invoice{
-		no:             no,
-		formatted_date: date,
-		net:            net,
+	gross, err := extractNumber(content, gocInvoiceGrossRegex)
+	if err != nil {
+		return invoice{}, fmt.Errorf("can't extract gross: %v", err)
 	}
+
+	invoiceData := invoice{no, nip, date, net, gross}
 
 	return invoiceData, nil
 }
