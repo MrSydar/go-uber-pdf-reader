@@ -17,6 +17,8 @@ const (
 	gocInvoiceNetRegexStr                        = `Wartość całkowita netto\s+(\d+\,\d+)\s+zł`
 	gocInvoiceGrossRegexStr                      = `Wartość całkowita brutto\s+(\d+\,\d+)\s+zł`
 	gocInvoiceNipRegexStr                        = `NIP:\s(\d{10})\sFaktura wystawiona przez`
+	nipStr                                       = "NIP"
+	currencyStr                                  = "zł"
 )
 
 type invoice struct {
@@ -70,7 +72,7 @@ func extractNumber(text string, re *regexp.Regexp) (float64, error) {
 }
 
 func extractNip(text string) (string, error) {
-	if strings.Count(text, "NIP") >= 2 {
+	if strings.Count(text, nipStr) >= 2 {
 		return getFirstSubgroupMatch(text, gocInvoiceNipRegex)
 	} else {
 		return "", nil
@@ -82,7 +84,9 @@ func extractInvoiceData(content string) (invoice, error) {
 		return invoice{}, fmt.Errorf("unsupported invoice type for extraction")
 	}
 
-	fmt.Println(content)
+	if strings.Count(content, currencyStr) > 5 {
+		return invoice{}, fmt.Errorf("unsupported number of rows in invoice")
+	}
 
 	no, err := getFirstSubgroupMatch(content, gocInvoiceNoRegex)
 	if err != nil {
