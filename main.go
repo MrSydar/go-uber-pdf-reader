@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ledongthuc/pdf"
@@ -13,7 +14,7 @@ const (
 	grossObligatoryCorrectionInvoiceTypeEvidence = `Datapowstaniaobowiązkupodatkowego`
 	gocInvoiceNumRegexStr                        = `Numer faktury korygującej:\s+([A-Z]+-\d{2}-\d{4}-\d{7})`
 	gocInvoiceDateRegexStr                       = `\d{2} [a-z]{3} \d{4}`
-	gocInvoiceNetStr                             = `Wartość całkowita netto\s+(\d+\,\d+)\s+zł`
+	gocInvoiceNetRegexStr                        = `Wartość całkowita netto\s+(\d+\,\d+)\s+zł`
 )
 
 type invoice struct {
@@ -25,6 +26,7 @@ type invoice struct {
 
 var gocInvoiceNumRegex = regexp.MustCompile(gocInvoiceNumRegexStr)
 var gocInvoiceDateRegex = regexp.MustCompile(gocInvoiceDateRegexStr)
+var gocInvoiceNetRegex = regexp.MustCompile(gocInvoiceNetRegexStr)
 
 func getFirstPageContent(pdfPath string) (string, error) {
 	f, r, err := pdf.Open(pdfPath)
@@ -57,24 +59,33 @@ func extractInvoiceData(content string) (invoice, error) {
 
 	fmt.Println(content)
 
-	invoice_no, err := getFirstSubgroupMatch(content, gocInvoiceNumRegex)
+	no, err := getFirstSubgroupMatch(content, gocInvoiceNumRegex)
 	if err != nil {
-		return invoice{}, fmt.Errorf("invoice number parse error: %v", err)
+		return invoice{}, fmt.Errorf("can't extract no: %v", err)
 	}
 
-	invoice_date := gocInvoiceDateRegex.FindString(content)
-	if invoice_date == "" {
-		return invoice{}, fmt.Errorf("invoice date parse error")
+	date := gocInvoiceDateRegex.FindString(content)
+	if date == "" {
+		return invoice{}, fmt.Errorf("can't extract date")
 	}
 
-	// invoice_net :=
+	netStr, err := getFirstSubgroupMatch(content, gocInvoiceNetRegex)
+	if err != nil {
+		return invoice{}, fmt.Errorf("can't extract net: %v", err)
+	}
+	net64, err := strconv.ParseFloat(netStr, 32)
+	if err != nil {
+		return invoice{}, fmt.Errorf("can't parse net value: %v", err)
+	}
+	net := float32(net64)
 
-	invoice_data := invoice{
-		no:             invoice_no,
-		formatted_date: invoice_date,
+	invoiceData := invoice{
+		no:             no,
+		formatted_date: date,
+		net:            net,
 	}
 
-	return invoice_data, nil
+	return invoiceData, nil
 }
 
 func main() {
@@ -89,7 +100,7 @@ func main() {
 	for _, f := range files {
 		filepath := dirpath + "/" + f.Name()
 
-		if content, err := extract_first_pdf_page(filepath); err != nil {
+		if content, err := getFirstPageContent(filepath); err != nil {
 			fmt.Printf("Error while processing %q file: %v\n", filepath, err)
 		} else {
 			invoice_data, err := extractInvoiceData(content)
