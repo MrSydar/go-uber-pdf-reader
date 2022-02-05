@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -120,28 +121,44 @@ func extractInvoiceData(content string) (invoice, error) {
 	return invoiceData, nil
 }
 
-func main() {
-	dirPath := "./invoices"
-
+func getInvoices(dirPath string) (func() (invoice, error), error) {
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
-		fmt.Printf("Error when listing files in directory: %v\n", err)
-		return
+		return nil, err
 	}
 
-	for _, f := range files {
-		filepath := dirPath + "/" + f.Name()
-
-		if content, err := getFirstPageContent(filepath); err != nil {
-			fmt.Printf("Error while processing %q file: %v\n", filepath, err)
+	i := 0
+	return func() (invoice, error) {
+		if i == len(files) {
+			return invoice{}, io.EOF
 		} else {
-			invoice_data, err := extractInvoiceData(content)
-			if err != nil {
-				fmt.Printf("Error while processing invoice contents %q: %v\n", filepath, err)
-				continue
+			filepath := dirPath + "/" + files[i].Name()
+			i++
+			if content, err := getFirstPageContent(filepath); err != nil {
+				return invoice{}, fmt.Errorf("can't read %q file contents: %v", filepath, err)
+			} else {
+				invoice_data, err := extractInvoiceData(content)
+				if err != nil {
+					return invoice{}, fmt.Errorf("can't extract invoice from %q file: %v", filepath, err)
+				}
+				return invoice_data, nil
 			}
+		}
+	}, nil
+}
 
-			fmt.Println(invoice_data)
+func main() {
+	dirPath := "/home/mrsydar/Desktop/warsaw 2 styczen/korekty"
+
+	if nextInvoice, err := getInvoices(dirPath); err != nil {
+		fmt.Printf("error reading invoice directory: %v\n", err)
+	} else {
+		for inv, err := nextInvoice(); err != io.EOF; inv, err = nextInvoice() {
+			if err != nil {
+				fmt.Printf("error extracting invoice: %v\n", err)
+			} else {
+				fmt.Println(inv)
+			}
 		}
 	}
 }
