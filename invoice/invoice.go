@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mrsydar/uberinvoice/util"
+	"regexp"
 	"strings"
 
 	"github.com/ledongthuc/pdf"
@@ -13,7 +14,14 @@ import (
 const (
 	invoiceNipEvidence = "NIP"
 	invoiceRowEvidence = "%"
+
+	regularInvoiceCustomerRegexStr = `^(.*)Dane do faktury są pobierane z riders.uber.com`
+
+	cash = "karta"
+	card = "gotówka"
 )
+
+var regularInvoiceCustomerRegex = regexp.MustCompile(regularInvoiceCustomerRegexStr)
 
 var monthNumber = map[string]string{
 	"sty": "01",
@@ -32,11 +40,13 @@ var monthNumber = map[string]string{
 
 type Invoice struct {
 	No            string
+	Customer      string
 	Nip           string
 	FormattedDate string
 	VatPercent    string
 	Net           string
 	Vat           string
+	PaymentType   string
 }
 
 func extractNip(text string) (string, error) {
@@ -62,8 +72,19 @@ func extractInvoiceData(content string) (Invoice, error) {
 		return Invoice{}, fmt.Errorf("unsupported correction invoice type")
 	}
 
-	if !strings.Contains(content, grossObligatoryCorrectionInvoiceTypeEvidence) {
-		return Invoice{}, fmt.Errorf("unsupported invoice type for extraction")
+	var customerRegexp *regexp.Regexp
+
+	var paymentType string
+	if strings.Contains(content, cashInvoiceTypeEvidence) {
+		customerRegexp = cashInvoiceCustomerRegex
+		paymentType = cash
+	} else {
+		if strings.Contains(content, grossObligatoryCorrectionInvoiceTypeEvidence) {
+			customerRegexp = gocInvoiceCustomerRegex
+		} else {
+			customerRegexp = regularInvoiceCustomerRegex
+		}
+		paymentType = card
 	}
 
 	if strings.Count(content, invoiceRowEvidence) > 1 {
@@ -73,6 +94,11 @@ func extractInvoiceData(content string) (Invoice, error) {
 	no, err := util.GetFirstSubgroupMatch(content, gocInvoiceNoRegex)
 	if err != nil {
 		return Invoice{}, fmt.Errorf("can't extract no: %v", err)
+	}
+
+	customer, err := util.GetFirstSubgroupMatch(content, customerRegexp)
+	if err != nil {
+		return Invoice{}, fmt.Errorf("can't extract customer: %v", err)
 	}
 
 	nip, err := extractNip(content)
@@ -102,11 +128,13 @@ func extractInvoiceData(content string) (Invoice, error) {
 
 	invoiceData := Invoice{
 		no,
+		customer,
 		nip,
 		date,
 		vatPercent,
 		strings.Replace(net, ",", ".", 1),
 		strings.Replace(vat, ",", ".", 1),
+		paymentType,
 	}
 
 	return invoiceData, nil

@@ -38,7 +38,7 @@ func main() {
 		defer errFile.Close()
 	}
 
-	iw.Write([]string{"no", "nip", "date", "vat_percent", "net", "vat"})
+	iw.Write([]string{"no", "customer", "payment_type", "nip", "date", "vat_percent", "net", "vat"})
 	if nextInvoice, err := invoice.GetInvoices(os.Args[1]); err != nil {
 		log.Printf("error reading invoice directory: %v\n", err)
 	} else {
@@ -49,6 +49,8 @@ func main() {
 			} else {
 				fields := []string{
 					inv.No,
+					inv.Customer,
+					inv.PaymentType,
 					inv.Nip,
 					inv.FormattedDate,
 					inv.VatPercent,
