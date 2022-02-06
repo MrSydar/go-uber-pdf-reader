@@ -31,25 +31,12 @@ var monthNumber = map[string]string{
 }
 
 type Invoice struct {
-	no            string
-	nip           string
-	formattedDate string
-	grossPercent  string
-	net           string
-	gross         string
-}
-
-func (inv *Invoice) GetAllFields() []string {
-	fields := []string{
-		inv.no,
-		inv.nip,
-		inv.formattedDate,
-		inv.grossPercent,
-		inv.net,
-		inv.gross,
-	}
-
-	return fields
+	No            string
+	Nip           string
+	FormattedDate string
+	VatPercent    string
+	Net           string
+	Vat           string
 }
 
 func extractNip(text string) (string, error) {
@@ -103,12 +90,12 @@ func extractInvoiceData(content string) (Invoice, error) {
 		return Invoice{}, fmt.Errorf("can't extract net: %v", err)
 	}
 
-	gross, err := util.GetFirstSubgroupMatch(content, gocInvoiceGrossRegex)
+	vat, err := util.GetFirstSubgroupMatch(content, gocInvoiceVatRegex)
 	if err != nil {
 		return Invoice{}, fmt.Errorf("can't extract gross: %v", err)
 	}
 
-	grossPercent, err := util.GetFirstSubgroupMatch(content, gocInvoiceGrossPercentRegex)
+	vatPercent, err := util.GetFirstSubgroupMatch(content, gocInvoiceVatPercentRegex)
 	if err != nil {
 		return Invoice{}, fmt.Errorf("can't extract gross percent: %v", err)
 	}
@@ -117,9 +104,9 @@ func extractInvoiceData(content string) (Invoice, error) {
 		no,
 		nip,
 		date,
-		grossPercent,
+		vatPercent,
 		strings.Replace(net, ",", ".", 1),
-		strings.Replace(gross, ",", ".", 1),
+		strings.Replace(vat, ",", ".", 1),
 	}
 
 	return invoiceData, nil

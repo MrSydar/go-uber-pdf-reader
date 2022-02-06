@@ -8,7 +8,18 @@ import (
 	"os"
 )
 
+const argErrorMessage = `
+	Not enough arguments.
+	
+	First argument:
+	- path to directory with uber invoices to extract
+`
+
 func main() {
+	if len(os.Args) != 2 {
+		log.Fatalf(argErrorMessage)
+	}
+
 	var iw *csv.Writer
 	invFile, err := os.Create("invoices.csv")
 	if err != nil {
@@ -25,20 +36,25 @@ func main() {
 		log.Fatalf("error opening errors.log: %v", err)
 	} else {
 		defer errFile.Close()
-		log.SetOutput(io.Writer(errFile))
 	}
 
-	dirPath := "/home/mrsydar/Desktop/warsaw 2 styczen/korekty"
-
-	iw.Write([]string{"no", "nip", "date", "gross_percent", "net", "gross"})
-	if nextInvoice, err := invoice.GetInvoices(dirPath); err != nil {
+	iw.Write([]string{"no", "nip", "date", "vat_percent", "net", "vat"})
+	if nextInvoice, err := invoice.GetInvoices(os.Args[1]); err != nil {
 		log.Printf("error reading invoice directory: %v\n", err)
 	} else {
+		log.SetOutput(io.Writer(errFile))
 		for inv, err := nextInvoice(); err != io.EOF; inv, err = nextInvoice() {
 			if err != nil {
 				log.Printf("error extracting invoice: %v\n", err)
 			} else {
-				fields := inv.GetAllFields()
+				fields := []string{
+					inv.No,
+					inv.Nip,
+					inv.FormattedDate,
+					inv.VatPercent,
+					inv.Net,
+					inv.Vat,
+				}
 				iw.Write(fields)
 			}
 		}
