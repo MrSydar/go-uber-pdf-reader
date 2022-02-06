@@ -15,6 +15,21 @@ const (
 	invoiceRowEvidence = "%"
 )
 
+var monthNumber = map[string]string{
+	"sty": "01",
+	"lut": "02",
+	"mar": "03",
+	"kwi": "04",
+	"maj": "05",
+	"cze": "06",
+	"lip": "07",
+	"sie": "08",
+	"wrz": "09",
+	"paź": "10",
+	"lis": "11",
+	"gru": "12",
+}
+
 type Invoice struct {
 	no            string
 	nip           string
@@ -45,6 +60,16 @@ func extractNip(text string) (string, error) {
 	}
 }
 
+func extractAndFormatDate(text string) (string, error) {
+	extractedDate := gocInvoiceDateRegex.FindString(text)
+	monthName := extractedDate[3:6]
+	if monthNumber[monthName] == "" {
+		return "", fmt.Errorf("unexpected month name: %v", monthName)
+	}
+	date := strings.Replace(extractedDate, monthName, monthNumber[monthName], 1)
+	return date[6:10] + date[3:5] + date[0:2] + "000000", nil
+}
+
 func extractInvoiceData(content string) (Invoice, error) {
 	if strings.Contains(content, correctionInvoiceTypeEvidence) {
 		return Invoice{}, fmt.Errorf("unsupported correction invoice type")
@@ -68,9 +93,9 @@ func extractInvoiceData(content string) (Invoice, error) {
 		return Invoice{}, fmt.Errorf("can't extract nip: %v", err)
 	}
 
-	date := gocInvoiceDateRegex.FindString(content)
+	date, err := extractAndFormatDate(content)
 	if date == "" {
-		return Invoice{}, fmt.Errorf("can't extract date")
+		return Invoice{}, fmt.Errorf("can't extract date: %v", err)
 	}
 
 	net, err := util.GetFirstSubgroupMatch(content, gocInvoiceNetRegex)

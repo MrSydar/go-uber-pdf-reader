@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-	var iw, ew *csv.Writer
-
+	var iw *csv.Writer
 	invFile, err := os.Create("invoices.csv")
 	if err != nil {
 		log.Fatalf("error opening invoices.csv: %v\n", err)
@@ -26,9 +25,7 @@ func main() {
 		log.Fatalf("error opening errors.log: %v", err)
 	} else {
 		defer errFile.Close()
-
-		ew = csv.NewWriter(errFile)
-		defer ew.Flush()
+		log.SetOutput(io.Writer(errFile))
 	}
 
 	dirPath := "/home/mrsydar/Desktop/warsaw 2 styczen/korekty"
@@ -43,8 +40,6 @@ func main() {
 			} else {
 				fields := inv.GetAllFields()
 				iw.Write(fields)
-
-				log.Println(inv)
 			}
 		}
 	}
