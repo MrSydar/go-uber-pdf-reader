@@ -33,7 +33,7 @@ func main() {
 
 	errFile, err := os.Create("errors.log")
 	if err != nil {
-		log.Fatalf("error opening errors.log: %v", err)
+		log.Fatalf(`error opening "errors.log": %v`, err)
 	} else {
 		defer errFile.Close()
 	}
