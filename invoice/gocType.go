@@ -10,7 +10,8 @@ import (
 const (
 	grossObligatoryCorrectionInvoiceTypeEvidence = "Datapowstaniaobowiązkupodatkowego"
 
-	gocInvoiceNoRegexStr         = `Numer faktury korygującej:\s+([A-Z]+-\d{2}-\d{4}-\d{7})`
+	// gocInvoiceNoRegexStr         = `Numer faktury korygującej:\s+([A-Z]+-\d{2}-\d{4}-\d{7})`
+	gocInvoiceNoRegexStr         = `Numer faktury:\s+([A-Z]+-\d{2}-\d{4}-\d{7})`
 	gocInvoiceCustomerStr        = `Faktura VAT\s*(.*)\s*Faktura wystawiona przez Uber Poland`
 	gocInvoiceNipRegexStr        = `NIP:\s(\d{10})\sFaktura wystawiona przez`
 	gocInvoiceDateRegexStr       = `\d{2} [a-z]{3} \d{4}`
