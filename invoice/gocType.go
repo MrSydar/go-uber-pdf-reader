@@ -85,5 +85,5 @@ func (invoice *gocInvoice) getVat() (string, error) {
 }
 
 func (invoice *gocInvoice) getPaymentType() string {
-	return cash
+	return card
 }

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	cash = "karta"
-	card = "gotówka"
+	cash = "gotówka"
+	card = "karta"
 )
 
 type pureInvoice interface {
